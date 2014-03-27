@@ -47,26 +47,20 @@ io.sockets.on('connection', function(socket) {
 
   socket.on('set username', function(userName) {
 
-    // Is this an existing user name?
     if (clients[userName] === undefined) {
-      // Does not exist ... so, proceed
       clients[userName] = socket.id;
       socketsOfClients[socket.id] = userName;
 
       // store the username in the socket session for this client
-	  socket.username = userName;
-	  // store the room name in the socket session for this client
-	  socket.room = 'lobby';
-	  // send client to room 1
-	  socket.join('lobby');
+  	  socket.username = userName;
+  	  // store the room name in the socket session for this client
+  	  socket.room = 'lobby';
+  	  // send client to room 1
+  	  socket.join('lobby');
 
-
-	// console.log(io.sockets.clients('lobby'));
-	// echo to lobby that a person has connected to their room
-	// io.sockets.in('lobby').emit('updatechat', userName);
-	// socket.emit('updaterooms', rooms, 'lobby');
-
-
+      //broadcast lobby except sender
+      //http://stackoverflow.com/questions/10058226/send-response-to-all-clients-except-sender-socket-io
+      socket.broadcast.to('lobby').emit('lobby_broadcast', 'Attention everybody, '+userName+' is onboard!');
       userNameAvailable(socket.id, userName);
       userJoined(userName);
     } else if (clients[userName] === socket.id) {
@@ -78,29 +72,28 @@ io.sockets.on('connection', function(socket) {
 
 
   socket.on('createRoom', function(msg){
-    var srcUser;
+    var user;
     if (msg.inferSrcUser) {
-      // Infer user name based on the socket id
-      srcUser = socketsOfClients[socket.id];
+      // user name based on the socket id
+      user = socketsOfClients[socket.id];
     } else {
-      srcUser = msg.source;
+      // user = msg.source;
     }
+
+  	socket.leave(socket.room);
+
     var roomName = msg.roomName;
- //  	io.sockets.in('lobby').emit('updatechat', userName);
-	// // leave the current room (stored in session)
-	// // socket.leave(socket.room);
-	// // join new room, received as function parameter
-	socket.join(roomName);
-	// socket.emit('updatechat', 'SERVER', 'you have connected to '+ roomName);
-	// // sent message to OLD room
-	// io.sockets.in(roomName).emit('updatechat', 'SERVER', socket.username+' has left this room');
-	// // update socket session room title
-	// socket.room = roomName;
-	console.log(io.sockets.manager.rooms);
+  	socket.join(roomName);
 
-	// console.log(io.sockets.clients('room1'));
-	// console.log(io.sockets.clients('lobby'));
+    //update own status
+    socket.emit('userSwitchRoom', 'you have entered room: '+roomName+' !');
 
+    //broadcast the old room
+    socket.broadcast.to(socket.room).emit('lobby_broadcast', user+' just left the room.');
+    
+    //say hello to the new room
+    socket.room = roomName;
+    socket.broadcast.to(roomName).emit('lobby_broadcast', user+' has joined this room!');
   });
 
 
@@ -152,10 +145,7 @@ function userLeft(uName) {
  
 function userNameAvailable(sId, uName) {
   setTimeout(function() {
- 
-    // console.log('Sending welcome msg to ' + uName + ' at ' + sId);
     io.sockets.sockets[sId].emit('welcome', { "userName" : uName, "currentUsers": JSON.stringify(Object.keys(clients)) });
- 
   }, 500);
 }
 
