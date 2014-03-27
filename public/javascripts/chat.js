@@ -32,17 +32,15 @@ function handleUserLeft(msg) {
  
 socket = io.connect("http://localhost:3000");
  
-function setFeedback(fb) {
-  $('span#feedback').html(fb);
+function setFeedback(fb, color) {
+  $('#feedback').css( "color", color );
+  $('#feedback').text(fb).show().fadeOut(3000);
 }
- 
+
+// set username, meanwhile enter the lobby 
 function setUsername() {
     myUserName = $('input#userName').val();
-    socket.emit('set username', $('input#userName').val(), 
-                  function(data) { 
-                    console.log('emit set username', data); 
-                  });
-    console.log('Set user name as ' + $('input#userName').val());
+    socket.emit('set username', myUserName);
 }
  
 function sendMessage() {
@@ -66,26 +64,42 @@ function setCurrentUsers(curUser, usersStr) {
 }
 
 function createRoom(roomName) {
-  socket.emit('createRoom', 
-              {
-                "inferSrcUser": true,
-                "roomName": roomName
-                // "source": "",
-                // "message": $('input#msg').val(),
-              });
+  var user = $('#userName').val();
+  if (roomName == ''){
+    setFeedback("Please name your room first", "red"); 
+  }else if (user == ''){
+    setFeedback("Please pick up a name first", "red"); 
+  }else{
+    socket.emit('createRoom', 
+                {
+                  "inferSrcUser": true,
+                  "roomName": roomName
+                });
+  }
 }
  
 $(function() {
   enableMsgInput(false);
  
+  socket.on('lobby_broadcast', function(msg) {
+    setFeedback(msg, 'green');
+  });
+
   socket.on('userJoined', function(msg) {
     appendNewUser(msg.userName, true);
   });
 
   // listener, whenever the server emits 'updatechat', this updates the chat body
-  socket.on('updatechat', function (userName) {
+  socket.on('updatechat', function(userName) {
     // console.log(curRoom);
     appendNewUser(userName, true);
+    enableMsgInput(true);
+    enableUsernameField(false);
+  });
+
+  socket.on('userSwitchRoom', function(msg) {
+    setFeedback(msg);
+    // appendNewUser(userName, true);
     enableMsgInput(true);
     enableUsernameField(false);
   });
@@ -99,7 +113,7 @@ $(function() {
   });
  
   socket.on('welcome', function(msg) {
-    setFeedback("<span style='color: green'> Username available. You can begin chatting.</span>");
+    setFeedback("Username available. You can begin chatting.", "green");
     setCurrentUsers(msg.userName, msg.currentUsers)
     enableMsgInput(true);
     enableUsernameField(false);
@@ -107,7 +121,7 @@ $(function() {
  
   socket.on('error', function(msg) {
       if (msg.userNameInUse) {
-          setFeedback("<span style='color: red'> Username already in use. Try another name.</span>");
+          setFeedback("Username already in use. Try another name.", "red");
       }
   });
    
@@ -137,7 +151,7 @@ $(function() {
 
     $('input#roomName').keypress(function(e) {
       var roomName = $('input#roomName').val();
-      if (e.keyCode == 13 && roomName != '') {
+      if (e.keyCode == 13) {
           createRoom(roomName);
           e.stopPropagation();
           e.stopped = true;
