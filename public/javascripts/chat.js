@@ -1,6 +1,9 @@
 var socket;
 var myUserName;
- 
+
+function enableCreateRoom(enable){
+  $('button#createRoom').prop('disabled', !enable);  
+} 
 function enableMsgInput(enable) {
   $('input#msg').prop('disabled', !enable);
 }
@@ -14,7 +17,7 @@ function appendNewMessage(msg) {
   if (msg.target == "All") {
     html = "<span class='allMsg'>" + msg.source + " : " + msg.message + "</span><br/>"
   } else {
-    // It is a private message to me
+    // It is a private message to certain room
     html = "<span class='privMsg'>" + msg.source + " (P) : " + msg.message + "</span><br/>"
   }
   $('#msgWindow').append(html);
@@ -26,6 +29,12 @@ function appendNewUser(uName, notify) {
     $('span#msgWindow').append("<span class='adminMsg'>==>" + uName + " just entered the Lobby <==<br/>")
 }
  
+function appendNewRoom(rName, notify) {
+  $('#roomWindow').append(rName + '<br />');
+  // if (notify && (myUserName !== uName) && (myUserName !== 'All'))
+  //   $('span#msgWindow').append("<span class='adminMsg'>==>" + uName + " just entered the Lobby <==<br/>")
+}
+
 function handleUserLeft(msg) {
     $("#userWindow option[value='" + msg.userName + "']").remove();
 }
@@ -42,15 +51,14 @@ function setUsername() {
     myUserName = $('input#userName').val();
     socket.emit('set username', myUserName);
 }
- 
 function sendMessage() {
-    var trgtUser = 'All';
+    var trgtRoom = $('#curRoom').text();
     socket.emit('message', 
                 {
                   "inferSrcUser": true,
-                  "source": "",
+                  "source": "A",
                   "message": $('input#msg').val(),
-                  "target": trgtUser
+                  "target": trgtRoom
                 });
     $('input#msg').val("");
 }
@@ -70,6 +78,7 @@ function createRoom(roomName) {
   }else if (user == ''){
     setFeedback("Please pick up a name first", "red"); 
   }else{
+    changeRoomName(roomName);
     socket.emit('createRoom', 
                 {
                   "inferSrcUser": true,
@@ -77,12 +86,20 @@ function createRoom(roomName) {
                 });
   }
 }
- 
+
+function changeRoomName(roomName) {
+  $('#curRoom').text(roomName);
+} 
+
 $(function() {
   enableMsgInput(false);
  
   socket.on('lobby_broadcast', function(msg) {
     setFeedback(msg, 'green');
+  });
+
+  socket.on('newRoomCreated', function(rName) {
+    appendNewRoom(rName);
   });
 
   socket.on('userJoined', function(msg) {
@@ -115,6 +132,8 @@ $(function() {
   socket.on('welcome', function(msg) {
     setFeedback("Username available. You can begin chatting.", "green");
     setCurrentUsers(msg.userName, msg.currentUsers)
+    changeRoomName('Lobby');
+    enableCreateRoom(true);
     enableMsgInput(true);
     enableUsernameField(false);
   });

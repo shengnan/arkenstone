@@ -40,6 +40,10 @@ var server = app.listen(app.get('port'), function(){
   console.log("Express server listening on port " + app.get('port'));
 });
 var io = socketio.listen(server, {log: false}); //reduce log
+
+var rooms = {};
+var socketsOfRooms = {};
+
 var clients = {};
 var socketsOfClients = {};
 
@@ -94,6 +98,9 @@ io.sockets.on('connection', function(socket) {
     //say hello to the new room
     socket.room = roomName;
     socket.broadcast.to(roomName).emit('lobby_broadcast', user+' has joined this room!');
+
+    io.sockets.emit('newRoomCreated', roomName);
+    // console.log(io.sockets.manager.rooms);
   });
 
 
@@ -106,7 +113,7 @@ io.sockets.on('connection', function(socket) {
     } else {
       srcUser = msg.source;
     }
- 
+
     if (msg.target == "All") {
       // broadcast
       io.sockets.emit('message',
@@ -114,11 +121,19 @@ io.sockets.on('connection', function(socket) {
            "message": msg.message,
            "target": msg.target});
     } else {
-      // Look up the socket id
-      io.sockets.sockets[clients[msg.target]].emit('message',
-          {"source": srcUser,
-           "message": msg.message,
-           "target": msg.target});
+      // chat within current room
+      var target = msg.target.toLowerCase();
+      io.sockets.in(target).emit('message', 
+        {
+          "source": srcUser,
+          "message": msg.message,
+          "target": target
+        });
+
+      // io.sockets.sockets[clients[msg.target]].emit('message',
+      //     {"source": srcUser,
+      //      "message": msg.message,
+      //      "target": msg.target});
     }
   })
   socket.on('disconnect', function() {
