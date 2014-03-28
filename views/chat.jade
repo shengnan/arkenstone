@@ -1,8 +1,8 @@
 extends layout
 
 block content
-  h1 Lobby
-  button#createRoom(type="submit") Create Room
+  h1#curRoom Where am I going?
+  button#createRoom(type="submit", disabled="true") Create Room
   
   input#roomName(type="text", style="width: 100px", hidden="true", placeholder="Enter Room Name Here...")
  
@@ -12,11 +12,12 @@ block content
   span#feedback
 
   p
-  div#userWindow.shadow
+  div#roomWindow.roomShadow
+  div#userWindow.userShadow
   div#msgWindow.shadow
 
   p
-  div
+  div#messageControl
     br
     table
       tr
