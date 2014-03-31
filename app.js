@@ -77,6 +77,8 @@ io.sockets.on('connection', function(socket) {
 
   socket.on('createRoom', function(msg){
     var user;
+    var roomType = msg.roomType;
+
     if (msg.inferSrcUser) {
       // user name based on the socket id
       user = socketsOfClients[socket.id];
@@ -89,17 +91,18 @@ io.sockets.on('connection', function(socket) {
     var roomName = msg.roomName;
   	socket.join(roomName);
 
-    //update own status
-    socket.emit('userSwitchRoom', 'you have entered room: '+roomName+' !');
+    //update own status, clear chat area, update own client list
+    socket.emit('switchRoom', roomName);
 
-    //broadcast the old room
-    socket.broadcast.to(socket.room).emit('lobby_broadcast', user+' just left the room.');
-    
-    //say hello to the new room
+    //say goodbye to the old room, update old room client list
+    socket.broadcast.to(socket.room).emit('switchRoomBroadcast', user, 'left');
+
+    //say hello to the new room, update new room client list
     socket.room = roomName;
-    socket.broadcast.to(roomName).emit('lobby_broadcast', user+' has joined this room!');
+    socket.broadcast.to(roomName).emit('switchRoomBroadcast', user, 'joined');
 
-    io.sockets.emit('newRoomCreated', roomName);
+    //update all clients room list including sender
+    io.sockets.emit('roomListUpdateBroadcast', roomName, socket.id, roomType);
     // console.log(io.sockets.manager.rooms);
   });
 

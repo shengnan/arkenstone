@@ -18,19 +18,25 @@ function appendNewMessage(msg) {
     html = "<span class='allMsg'>" + msg.source + " : " + msg.message + "</span><br/>"
   } else {
     // It is a private message to certain room
-    html = "<span class='privMsg'>" + msg.source + " (P) : " + msg.message + "</span><br/>"
+    html = "<span class='privMsg'>" + msg.source + " : " + msg.message + "</span><br/>"
   }
   $('#msgWindow').append(html);
 }
  
 function appendNewUser(uName, notify) {
-  $('#userWindow').append(uName + '<br />');
-  if (notify && (myUserName !== uName) && (myUserName !== 'All'))
+  $('#userWindow').append('<a class="user" href="">' + uName + '</a><br />');
+  if (notify && (myUserName !== uName) && (myUserName !== 'All')){
     $('span#msgWindow').append("<span class='adminMsg'>==>" + uName + " just entered the Lobby <==<br/>")
+  }
+  $(".user").click(function(e){
+    e.preventDefault(); // prevent the default action of anchor tag
+    return false;
+  })
 }
  
-function appendNewRoom(rName, notify) {
-  $('#roomWindow').append(rName + '<br />');
+function appendNewRoom(rName, socketId, rType) {
+  $('#roomWindow').append('<input type="hidden" socket="' + socketId + '" roomType="' + rType + '" >');
+  $('#roomWindow').append('<a href="" class="room">' + rName + '</a><br />');
   // if (notify && (myUserName !== uName) && (myUserName !== 'All'))
   //   $('span#msgWindow').append("<span class='adminMsg'>==>" + uName + " just entered the Lobby <==<br/>")
 }
@@ -44,6 +50,22 @@ socket = io.connect("http://localhost:3000");
 function setFeedback(fb, color) {
   $('#feedback').css( "color", color );
   $('#feedback').text(fb).show().fadeOut(3000);
+}
+
+function updateClientList(uName, action) { 
+  if (action == 'left'){
+    $('a.user').each(function(index){
+      if (uName == $(this).text()){
+        $(this).css('display', 'none');
+      }
+    });
+  } else if (action == 'joined') {
+    $('#userWindow').append('<a class="user" href="">' + uName + '</a><br />');
+  }
+}
+
+function clearChatArea() {
+  $('#msgWindow').text('');
 }
 
 // set username, meanwhile enter the lobby 
@@ -71,7 +93,7 @@ function setCurrentUsers(curUser, usersStr) {
   });
 }
 
-function createRoom(roomName) {
+function createRoom(roomName, roomType) {
   var user = $('#userName').val();
   if (roomName == ''){
     setFeedback("Please name your room first", "red"); 
@@ -82,7 +104,8 @@ function createRoom(roomName) {
     socket.emit('createRoom', 
                 {
                   "inferSrcUser": true,
-                  "roomName": roomName
+                  "roomName": roomName,
+                  "roomType": roomType
                 });
   }
 }
@@ -94,12 +117,22 @@ function changeRoomName(roomName) {
 $(function() {
   enableMsgInput(false);
  
-  socket.on('lobby_broadcast', function(msg) {
-    setFeedback(msg, 'green');
+  socket.on('switchRoom', function(rName) {
+    var msg = 'you have entered room: '+rName+' !';
+    setFeedback(msg);
+    clearChatArea();
+    enableMsgInput(true);
+    enableUsernameField(false);
   });
 
-  socket.on('newRoomCreated', function(rName) {
-    appendNewRoom(rName);
+  socket.on('switchRoomBroadcast', function(uName, action) {
+    var msg = uName + ' has ' + action + 'this room.';
+    setFeedback(msg, 'green');
+    updateClientList(uName, action);
+  });
+
+  socket.on('roomListUpdateBroadcast', function(rName, socketId, rType) {
+    appendNewRoom(rName, socketId, rType);
   });
 
   socket.on('userJoined', function(msg) {
@@ -110,13 +143,6 @@ $(function() {
   socket.on('updatechat', function(userName) {
     // console.log(curRoom);
     appendNewUser(userName, true);
-    enableMsgInput(true);
-    enableUsernameField(false);
-  });
-
-  socket.on('userSwitchRoom', function(msg) {
-    setFeedback(msg);
-    // appendNewUser(userName, true);
     enableMsgInput(true);
     enableUsernameField(false);
   });
@@ -142,6 +168,11 @@ $(function() {
       if (msg.userNameInUse) {
           setFeedback("Username already in use. Try another name.", "red");
       }
+  });
+
+  $('#createRoom').click(function() {
+    $('#roomName').show();
+    $('#roomType').show();
   });
    
   $('input#userName').keypress(function(e) {
@@ -169,12 +200,14 @@ $(function() {
   });
 
     $('input#roomName').keypress(function(e) {
+      var roomType = $('#roomType :selected').val();
       var roomName = $('input#roomName').val();
       if (e.keyCode == 13) {
-          createRoom(roomName);
+          createRoom(roomName, roomType);
           e.stopPropagation();
           e.stopped = true;
           e.preventDefault();
+          $('select#roomType').toggle();
           $('input#roomName').toggle();
       }
   });
