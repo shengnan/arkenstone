@@ -4,8 +4,12 @@ block content
   h1#curRoom Where am I going?
   button#createRoom(type="submit", disabled="true") Create Room
   
+  select#roomType(hidden="true")
+    option public
+    option private
+
   input#roomName(type="text", style="width: 100px", hidden="true", placeholder="Enter Room Name Here...")
- 
+
   p 
   label(for="userName") User name: (Hit Enter) 
   input#userName(type="text", size="30")

@@ -57,3 +57,11 @@
 #messageControl {
 	margin-left: 265px;
 }
+
+.room{
+	text-decoration: none;
+}
+.user{
+	text-decoration: none;	
+	cursor: default;
+}
