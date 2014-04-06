@@ -42,7 +42,7 @@ var server = app.listen(app.get('port'), function(){
 var io = socketio.listen(server, {log: false}); //reduce log
 
 var rooms = {};
-var socketsOfRooms = {};
+var typesOfRooms = {};
 
 var clients = {};
 var socketsOfClients = {};
@@ -56,17 +56,18 @@ io.sockets.on('connection', function(socket) {
       socketsOfClients[socket.id] = userName;
 
       // store the username in the socket session for this client
-  	  socket.username = userName;
-  	  // store the room name in the socket session for this client
-  	  socket.room = 'lobby';
-  	  // send client to room 1
-  	  socket.join('lobby');
+      socket.username = userName;
+      // store the room name in the socket session for this client
+      socket.room = 'lobby';
+      // send client to room 1
+      socket.join('lobby');
 
-      //broadcast lobby except sender
       //http://stackoverflow.com/questions/10058226/send-response-to-all-clients-except-sender-socket-io
-      socket.broadcast.to('lobby').emit('lobby_broadcast', 'Attention everybody, '+userName+' is onboard!');
+      //broadcast lobby except sender
+      socket.broadcast.to('lobby').emit('lobbyBroadcast', userName);
       userNameAvailable(socket.id, userName);
       userJoined(userName);
+      socket.emit('initRoomList', io.sockets.manager.rooms, typesOfRooms);
     } else if (clients[userName] === socket.id) {
       // Ignore for now
     } else {
@@ -74,25 +75,33 @@ io.sockets.on('connection', function(socket) {
     }
   });
 
-
   socket.on('createRoom', function(msg){
     var user;
+    var clientsList = {};
+    var roomName = msg.roomName;
     var roomType = msg.roomType;
 
     if (msg.inferSrcUser) {
       // user name based on the socket id
       user = socketsOfClients[socket.id];
+      clientsList[socket.id] = user;
     } else {
       // user = msg.source;
     }
+    
+    rooms[socket.id] = roomName;
+    typesOfRooms[roomName] = roomType;
 
-  	socket.leave(socket.room);
+    socket.leave(socket.room);
 
-    var roomName = msg.roomName;
-  	socket.join(roomName);
+    socket.join(roomName);
 
     //update own status, clear chat area, update own client list
-    socket.emit('switchRoom', roomName);
+    var clients = io.sockets.clients(roomName);
+    clients.forEach(function(client) {
+      clientsList[client.id] = client.username;
+    });
+    socket.emit('switchRoom', roomName, clientsList);
 
     //say goodbye to the old room, update old room client list
     socket.broadcast.to(socket.room).emit('switchRoomBroadcast', user, 'left');
@@ -101,12 +110,11 @@ io.sockets.on('connection', function(socket) {
     socket.room = roomName;
     socket.broadcast.to(roomName).emit('switchRoomBroadcast', user, 'joined');
 
-    //update all clients room list including sender
+    //update all clients' roomList including sender
     io.sockets.emit('roomListUpdateBroadcast', roomName, socket.id, roomType);
+
     // console.log(io.sockets.manager.rooms);
   });
-
-
 
   socket.on('message', function(msg) {
     var srcUser;
@@ -139,6 +147,7 @@ io.sockets.on('connection', function(socket) {
       //      "target": msg.target});
     }
   })
+
   socket.on('disconnect', function() {
     var uName = socketsOfClients[socket.id];
     delete socketsOfClients[socket.id];
@@ -168,10 +177,10 @@ function userNameAvailable(sId, uName) {
 }
 
 // function roomNameAvailable(sId, roomName) {
-// 	setTime(function() {
-// 		console.log('Room created' + roomName + ' at ' + sId);
-// 		io.sockets.sockets[sId].emit('room welcome', {"roomName" : roomName, "currentRooms": JSON.stringify(Object.keys(rooms)) });
-// 	}, 500);
+//  setTime(function() {
+//    console.log('Room created' + roomName + ' at ' + sId);
+//    io.sockets.sockets[sId].emit('room welcome', {"roomName" : roomName, "currentRooms": JSON.stringify(Object.keys(rooms)) });
+//  }, 500);
 // }
 
 function userNameAlreadyInUse(sId, uName) {

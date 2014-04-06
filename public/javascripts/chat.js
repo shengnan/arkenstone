@@ -24,7 +24,7 @@ function appendNewMessage(msg) {
 }
  
 function appendNewUser(uName, notify) {
-  $('#userWindow').append('<a class="user" href="">' + uName + '</a><br />');
+  $('#userWindow').append('<a class="user">' + uName + '</a><br />');
   if (notify && (myUserName !== uName) && (myUserName !== 'All')){
     $('span#msgWindow').append("<span class='adminMsg'>==>" + uName + " just entered the Lobby <==<br/>")
   }
@@ -36,7 +36,7 @@ function appendNewUser(uName, notify) {
  
 function appendNewRoom(rName, socketId, rType) {
   $('#roomWindow').append('<input type="hidden" socket="' + socketId + '" roomType="' + rType + '" >');
-  $('#roomWindow').append('<a href="" class="room">' + rName + '</a><br />');
+  $('#roomWindow').append('<a class="room">' + rName + '</a><br />');
   // if (notify && (myUserName !== uName) && (myUserName !== 'All'))
   //   $('span#msgWindow').append("<span class='adminMsg'>==>" + uName + " just entered the Lobby <==<br/>")
 }
@@ -44,8 +44,6 @@ function appendNewRoom(rName, socketId, rType) {
 function handleUserLeft(msg) {
     $("#userWindow option[value='" + msg.userName + "']").remove();
 }
- 
-socket = io.connect("http://localhost:3000");
  
 function setFeedback(fb, color) {
   $('#feedback').css( "color", color );
@@ -60,10 +58,16 @@ function updateClientList(uName, action) {
       }
     });
   } else if (action == 'joined') {
-    $('#userWindow').append('<a class="user" href="">' + uName + '</a><br />');
+    $('#userWindow').append('<a class="user">' + uName + '</a><br />');
   }
 }
 
+function reloadClients(clsList) {
+  $('#userWindow').text('');  
+  for (var sId in clsList) {
+    $('#userWindow').append('<a class="user" href="lalala/sid='+sId+'">' + clsList[sId] + '</a><br />');
+  }
+}
 function clearChatArea() {
   $('#msgWindow').text('');
 }
@@ -114,12 +118,29 @@ function changeRoomName(roomName) {
   $('#curRoom').text(roomName);
 } 
 
+socket = io.connect("http://localhost:3000");
+
 $(function() {
   enableMsgInput(false);
- 
-  socket.on('switchRoom', function(rName) {
+
+  socket.on('lobbyBroadcast', function(uName){
+    var msg = 'Attention everyone, '+uName+' is onboard!';
+    setFeedback(msg);
+  });
+
+  socket.on('initRoomList', function(rsList, tpsOfRoom){
+    for (var room in rsList) {
+      if (room != '/lobby' && room != '') {
+        var roomName = room.substring(1);
+        appendNewRoom(roomName, rsList[room], tpsOfRoom[roomName]);
+      }
+    }
+  });
+
+  socket.on('switchRoom', function(rName, clsList) {
     var msg = 'you have entered room: '+rName+' !';
     setFeedback(msg);
+    reloadClients(clsList);
     clearChatArea();
     enableMsgInput(true);
     enableUsernameField(false);
@@ -193,23 +214,28 @@ $(function() {
       }
   });
 
+  $('#roomWindow a').click(function() {
+    // var $prev = $(this).prev();
+    console.log('dsfafasfsa');
+  });
+
   $( "#send" ).click(function() {
     if ($('input#msg').val() != '') {
         sendMessage();
     }
   });
 
-    $('input#roomName').keypress(function(e) {
-      var roomType = $('#roomType :selected').val();
-      var roomName = $('input#roomName').val();
-      if (e.keyCode == 13) {
-          createRoom(roomName, roomType);
-          e.stopPropagation();
-          e.stopped = true;
-          e.preventDefault();
-          $('select#roomType').toggle();
-          $('input#roomName').toggle();
-      }
+  $('input#roomName').keypress(function(e) {
+    var roomType = $('#roomType :selected').val();
+    var roomName = $('input#roomName').val();
+    if (e.keyCode == 13) {
+        createRoom(roomName, roomType);
+        e.stopPropagation();
+        e.stopped = true;
+        e.preventDefault();
+        $('select#roomType').toggle();
+        $('input#roomName').toggle();
+    }
   });
 
 });
