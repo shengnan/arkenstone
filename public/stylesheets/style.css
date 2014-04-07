@@ -4,5 +4,13 @@ body {
 }
 
 a {
+  cursor: pointer;
   color: #00B7FF;
+}
+
+.room {}
+
+.name {
+	cursor: pointer;
+	color: #00B7FF;
 }
