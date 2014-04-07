@@ -35,10 +35,15 @@ function appendNewUser(uName, notify) {
 }
  
 function appendNewRoom(rName, socketId, rType) {
-  $('#roomWindow').append('<input type="hidden" socket="' + socketId + '" roomType="' + rType + '" >');
-  $('#roomWindow').append('<a class="room">' + rName + '</a><br />');
-  // if (notify && (myUserName !== uName) && (myUserName !== 'All'))
-  //   $('span#msgWindow').append("<span class='adminMsg'>==>" + uName + " just entered the Lobby <==<br/>")
+  var html = '<div class="room">' +
+                '<input type="hidden" socket="' + socketId + '" roomType="' + rType + '" >' +
+                '<span class="name">' + rName + '</span>' +
+              '</div>';
+  $('#roomWindow').append(html);
+  $('span.name').click(function(e) {
+    var joiner = $('#userName').val();
+    socket.emit('joinRoom', joiner); // to be continued...
+  });
 }
 
 function handleUserLeft(msg) {
@@ -212,11 +217,6 @@ $(function() {
           e.stopped = true;
           e.preventDefault();
       }
-  });
-
-  $('#roomWindow a').click(function() {
-    // var $prev = $(this).prev();
-    console.log('dsfafasfsa');
   });
 
   $( "#send" ).click(function() {
